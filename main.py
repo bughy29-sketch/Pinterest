@@ -55,8 +55,8 @@ def fetch_rss_deals():
         return []
 
 def generate_pin_details(product_title):
-    # Folosim denumirea compatibilă cu API-ul
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    # Folosim gemini-pro care este stabil și acceptat universal
+    model = genai.GenerativeModel("gemini-pro")
     prompt = f"""
     Create an engaging, viral Pinterest Pin title and description in English for this deal: "{product_title}".
     Highlight that it's a great offer.
