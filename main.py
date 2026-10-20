@@ -90,7 +90,8 @@ def create_pinterest_pin(title, description, link, image_url):
             "url": image_url
         }
     }
-    res = requests.post(url, json=payload, headers=headers)
+    # Adăugăm timeout=10 ca să nu blocheze scriptul dacă Pinterest nu răspunde instant
+    res = requests.post(url, json=payload, headers=headers, timeout=10)
     return res.json()
 
 def main():
