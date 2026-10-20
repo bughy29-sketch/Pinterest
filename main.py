@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from google import genai
 
-# Configurare Chei și Credențiale din Variabile de Mediu
+# Configurare Credențiale din Variabile de Mediu
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN")
 PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID")
@@ -62,7 +62,6 @@ def generate_pin_details(product_title):
     TITLE: <catchy title under 100 chars>
     DESCRIPTION: <SEO-optimized description under 500 chars with relevant hashtags>
     """
-    # Folosim modelul cerut de API
     response = client.models.generate_content(
         model="gemini-3.8-flash",
         contents=prompt,
@@ -90,7 +89,7 @@ def create_pinterest_pin(title, description, link, image_url):
             "url": image_url
         }
     }
-    # Adăugăm timeout=10 ca să nu blocheze scriptul dacă Pinterest nu răspunde instant
+    # Timeout de 10 secunde pentru a evita blocarea scriptului
     res = requests.post(url, json=payload, headers=headers, timeout=10)
     return res.json()
 
