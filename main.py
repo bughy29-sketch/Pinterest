@@ -10,7 +10,7 @@ PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN")
 PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID")
 AMAZON_AFFILIATE_TAG = os.getenv("AMAZON_AFFILIATE_TAG", "bughy29-20")
 
-# Inițializare client nou Google GenAI
+# Inițializare client Google GenAI
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Feed RSS public de oferte Amazon (Slickdeals)
@@ -62,9 +62,9 @@ def generate_pin_details(product_title):
     TITLE: <catchy title under 100 chars>
     DESCRIPTION: <SEO-optimized description under 500 chars with relevant hashtags>
     """
-    # Folosim noul mod de apelare cu clientul GenAI
+    # Folosim modelul cerut de API
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.8-flash",
         contents=prompt,
     )
     text = response.text
