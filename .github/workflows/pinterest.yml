@@ -1,9 +1,10 @@
-name: Daily Pinterest Automation
+
+  name: Daily Pinterest Automation
 
 on:
   schedule:
-    - cron: '0 10 * * *' # Rulează zilnic la ora 10:00 UTC (13:00 ora României)
-  workflow_dispatch: # Îți permite să îl rulezi și manual oricând
+    - cron: '0 10 * * *'
+  workflow_dispatch:
 
 jobs:
   run-script:
@@ -20,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install requests beautifulsoup4 google-generativeai
 
       - name: Run main script
         env:
@@ -29,4 +30,4 @@ jobs:
           PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
           AMAZON_AFFILIATE_TAG: ${{ secrets.AMAZON_AFFILIATE_TAG }}
         run: python main.py
-        
+      
