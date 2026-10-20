@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 
 # Configurare Credențiale din Variabile de Mediu
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN")
 PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID")
 AMAZON_AFFILIATE_TAG = os.getenv("AMAZON_AFFILIATE_TAG", "bughy29-20")
@@ -50,41 +49,6 @@ def fetch_rss_deals():
         print(f"Eroare la citirea RSS Feed: {e}")
         return []
 
-def generate_pin_details(product_title):
-    """Generează titlul și descrierea prin cerere HTTP directă către Gemini API (rapid și fără blocaje)"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-    
-    prompt = f"""
-    Create an engaging, viral Pinterest Pin title and description in English for this deal: "{product_title}".
-    Highlight that it's a great offer.
-    Format output exactly like this:
-    TITLE: <catchy title under 100 chars>
-    DESCRIPTION: <SEO-optimized description under 500 chars with relevant hashtags>
-    """
-    
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
-    }
-    
-    headers = {"Content-Type": "application/json"}
-    
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-        data = response.json()
-        
-        # Extragem textul generat din răspunsul JSON
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-        
-        title = text.split("TITLE:")[1].split("DESCRIPTION:")[0].strip()
-        description = text.split("DESCRIPTION:")[1].strip()
-        
-        return title, description
-    except Exception as e:
-        print(f"Eroare la Gemini API, folosesc titlul original: {e}")
-        return product_title[:99], f"Check out this amazing deal on Amazon! 🔥 #AmazonDeals #Shopping #MustHave"
-
 def create_pinterest_pin(title, description, link, image_url):
     url = "https://api.pinterest.com/v5/pins"
     headers = {
@@ -93,8 +57,8 @@ def create_pinterest_pin(title, description, link, image_url):
     }
     payload = {
         "board_id": PINTEREST_BOARD_ID,
-        "title": title,
-        "description": description,
+        "title": title[:99], # Limită Pinterest pentru titlu
+        "description": description[:499], # Limită Pinterest pentru descriere
         "link": link,
         "media_source": {
             "source_type": "image_url",
@@ -117,7 +81,8 @@ def main():
             raw_link = item["link"]
             affiliate_link = f"{raw_link}&tag={AMAZON_AFFILIATE_TAG}" if "?" in raw_link else f"{raw_link}?tag={AMAZON_AFFILIATE_TAG}"
             
-            title, description = generate_pin_details(item["title"])
+            title = item["title"]
+            description = f"🔥 Best Amazon Deal! Check it out now. #Amazon #Deals #Shopping"
             
             res = create_pinterest_pin(title, description, affiliate_link, item["image_url"])
             print(f"Răspuns Pinterest pentru '{title}': {res}")
