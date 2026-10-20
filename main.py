@@ -1,5 +1,7 @@
 import os
+import re
 import requests
+import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import google.generativeai as genai
 
@@ -7,61 +9,59 @@ import google.generativeai as genai
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN")
 PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID")
-AMAZON_AFFILIATE_TAG = os.getenv("AMAZON_AFFILIATE_TAG")
+AMAZON_AFFILIATE_TAG = os.getenv("AMAZON_AFFILIATE_TAG", "bughy29-20")
+
+# Feed RSS public de oferte / produse populare Amazon (Slickdeals Amazon Deals RSS)
+RSS_FEED_URL = "https://slickdeals.net/newsearch.php?mode=popdeals&searchtypedsc=new&q=amazon&searchin=first&rss=1"
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-def get_best_deals():
-    """Extrage automat primele link-uri de produse din pagina de Deals Amazon"""
-    deals_url = "https://www.amazon.com/gp/goldbox"
+def fetch_rss_deals():
+    """Citește feed-ul RSS și extrage produsele găsite."""
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
-    
     try:
-        response = requests.get(deals_url, headers=headers)
-        soup = BeautifulSoup(response.content, "html.parser")
+        response = requests.get(RSS_FEED_URL, headers=headers, timeout=10)
+        root = ET.fromstring(response.content)
         
-        links = []
-        # Căutăm toate link-urile de produse (/dp/) din pagina de oferte
-        for a in soup.find_all("a", href=True):
-            href = a["href"]
-            if "/dp/" in href:
-                # Curățăm link-ul pentru a păstra doar structura de bază
-                clean_url = "https://www.amazon.com" + href.split("?")[0]
-                if clean_url not in links:
-                    links.append(clean_url)
-                if len(links) >= 5:
-                    break
-        return links
+        items = []
+        for item in root.findall("./channel/item"):
+            title = item.find("title").text if item.find("title") is not None else ""
+            description = item.find("description").text if item.find("description") is not None else ""
+            link = item.find("link").text if item.find("link") is not None else ""
+            
+            # Căutăm o imagine în descriere
+            img_url = ""
+            if description:
+                soup = BeautifulSoup(description, "html.parser")
+                img_tag = soup.find("img")
+                if img_tag and img_tag.get("src"):
+                    img_url = img_tag["src"]
+            
+            # Dacă nu găsim o imagine validă, folosim o imagine generică/placeholder
+            if not img_url or not img_url.startswith("http"):
+                img_url = "https://m.media-amazon.com/images/G/01/social/api-share/amazon_logo_500x500._CB485935080_.png"
+                
+            items.append({
+                "title": title,
+                "link": link,
+                "image_url": img_url
+            })
+            
+            if len(items) >= 5:
+                break
+                
+        return items
     except Exception as e:
-        print(f"Eroare la preluarea ofertelor: {e}")
+        print(f"Eroare la citirea RSS Feed: {e}")
         return []
-
-def scrape_amazon_product(url):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9"
-    }
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.content, "html.parser")
-    
-    title_elem = soup.find(id="productTitle")
-    title = title_elem.get_text().strip() if title_elem else "Great Amazon Deal"
-    
-    img_elem = soup.find(id="landingImage")
-    img_url = img_elem["src"] if img_elem else ""
-    
-    affiliate_url = f"{url}?tag={AMAZON_AFFILIATE_TAG}" if AMAZON_AFFILIATE_TAG else url
-    
-    return {"title": title, "image_url": img_url, "link": affiliate_url}
 
 def generate_pin_details(product_title):
     model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
-    Create an engaging Pinterest Pin title and description in English for this discounted product: "{product_title}".
-    Highlight that it's a great deal or offer.
+    Create an engaging, viral Pinterest Pin title and description in English for this deal: "{product_title}".
+    Highlight that it's a great offer.
     Format output exactly like this:
     TITLE: <catchy title under 100 chars>
     DESCRIPTION: <SEO-optimized description under 500 chars with relevant hashtags>
@@ -94,21 +94,27 @@ def create_pinterest_pin(title, description, link, image_url):
     return res.json()
 
 def main():
-    print("Se caută ultimele Best Deals pe Amazon...")
-    deal_urls = get_best_deals()
+    print("Se extrag ofertele din Feed-ul RSS...")
+    deals = fetch_rss_deals()
     
-    if not deal_urls:
-        print("Nu s-au putut extrage ofertele automate, se oprește executarea.")
+    if not deals:
+        print("Nu s-au găsit oferte în RSS Feed.")
         return
 
-    for url in deal_urls:
+    for item in deals:
         try:
-            product = scrape_amazon_product(url)
-            title, description = generate_pin_details(product["title"])
-            res = create_pinterest_pin(title, description, product["link"], product["image_url"])
-            print(f"Pin creat cu succes pentru oferta: {title}")
+            # Adăugăm tag-ul de afiliat
+            raw_link = item["link"]
+            affiliate_link = f"{raw_link}&tag={AMAZON_AFFILIATE_TAG}" if "?" in raw_link else f"{raw_link}?tag={AMAZON_AFFILIATE_TAG}"
+            
+            # Generăm detaliile cu Gemini
+            title, description = generate_pin_details(item["title"])
+            
+            # Creăm Pin-ul
+            res = create_pinterest_pin(title, description, affiliate_link, item["image_url"])
+            print(f"Pin creat cu succes din RSS pentru: {title}")
         except Exception as e:
-            print(f"Eroare la procesarea produsului {url}: {e}")
+            print(f"Eroare la procesarea ofertei: {e}")
 
 if __name__ == "__main__":
     main()
