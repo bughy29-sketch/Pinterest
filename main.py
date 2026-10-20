@@ -5,12 +5,11 @@ from bs4 import BeautifulSoup
 import google.generativeai as genai
 
 # Configurare Chei și Credențiale din Variabile de Mediu
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN")
 PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID")
 AMAZON_AFFILIATE_TAG = os.getenv("AMAZON_AFFILIATE_TAG", "bughy29-20")
 
-# Asigurăm configurarea API Key pentru Gemini
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
@@ -18,7 +17,6 @@ if GEMINI_API_KEY:
 RSS_FEED_URL = "https://slickdeals.net/newsearch.php?mode=popdeals&searchtypedsc=new&q=amazon&searchin=first&rss=1"
 
 def fetch_rss_deals():
-    """Citește feed-ul RSS și extrage produsele găsite."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
@@ -57,7 +55,8 @@ def fetch_rss_deals():
         return []
 
 def generate_pin_details(product_title):
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    # Folosim denumirea compatibilă cu API-ul
+    model = genai.GenerativeModel("gemini-1.5-flash-latest")
     prompt = f"""
     Create an engaging, viral Pinterest Pin title and description in English for this deal: "{product_title}".
     Highlight that it's a great offer.
