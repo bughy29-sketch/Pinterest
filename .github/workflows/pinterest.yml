@@ -1,5 +1,4 @@
-
-  name: Daily Pinterest Automation
+name: Daily Pinterest Automation
 
 on:
   schedule:
