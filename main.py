@@ -1,7 +1,6 @@
 import os
-import re
-import requests
 import xml.etree.ElementTree as ET
+import requests
 from bs4 import BeautifulSoup
 import google.generativeai as genai
 
@@ -11,10 +10,12 @@ PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN")
 PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID")
 AMAZON_AFFILIATE_TAG = os.getenv("AMAZON_AFFILIATE_TAG", "bughy29-20")
 
-# Feed RSS public de oferte / produse populare Amazon (Slickdeals Amazon Deals RSS)
-RSS_FEED_URL = "https://slickdeals.net/newsearch.php?mode=popdeals&searchtypedsc=new&q=amazon&searchin=first&rss=1"
+# Asigurăm configurarea API Key pentru Gemini
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
-genai.configure(api_key=GEMINI_API_KEY)
+# Feed RSS public de oferte Amazon (Slickdeals)
+RSS_FEED_URL = "https://slickdeals.net/newsearch.php?mode=popdeals&searchtypedsc=new&q=amazon&searchin=first&rss=1"
 
 def fetch_rss_deals():
     """Citește feed-ul RSS și extrage produsele găsite."""
@@ -31,7 +32,6 @@ def fetch_rss_deals():
             description = item.find("description").text if item.find("description") is not None else ""
             link = item.find("link").text if item.find("link") is not None else ""
             
-            # Căutăm o imagine în descriere
             img_url = ""
             if description:
                 soup = BeautifulSoup(description, "html.parser")
@@ -39,7 +39,6 @@ def fetch_rss_deals():
                 if img_tag and img_tag.get("src"):
                     img_url = img_tag["src"]
             
-            # Dacă nu găsim o imagine validă, folosim o imagine generică/placeholder
             if not img_url or not img_url.startswith("http"):
                 img_url = "https://m.media-amazon.com/images/G/01/social/api-share/amazon_logo_500x500._CB485935080_.png"
                 
@@ -103,16 +102,14 @@ def main():
 
     for item in deals:
         try:
-            # Adăugăm tag-ul de afiliat
             raw_link = item["link"]
             affiliate_link = f"{raw_link}&tag={AMAZON_AFFILIATE_TAG}" if "?" in raw_link else f"{raw_link}?tag={AMAZON_AFFILIATE_TAG}"
             
-            # Generăm detaliile cu Gemini
             title, description = generate_pin_details(item["title"])
             
-            # Creăm Pin-ul
             res = create_pinterest_pin(title, description, affiliate_link, item["image_url"])
-            print(f"Pin creat cu succes din RSS pentru: {title}")
+            print(f"Răspuns Pinterest pentru '{title}': {res}")
+            
         except Exception as e:
             print(f"Eroare la procesarea ofertei: {e}")
 
